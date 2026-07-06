@@ -1,1 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Adaptive Traffic Light System</title>
+    <meta name="description" content="Smart adaptive traffic light simulation — density-based signal timing and emergency vehicle priority using Python simulation engine.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-container">
 
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-logo">
+            <div class="pulsing-dot-green"></div>
+            <h1>Smart Traffic Light System</h1>
+        </div>
+        <div class="system-mode-badge" id="systemModeBadge">SMART MODE ACTIVE</div>
+    </header>
+
+    <!-- Main 3-column grid -->
+    <main class="app-main">
+
+        <!-- ── Left: Controls ── -->
+        <section class="control-panel">
+
+            <div class="panel-card glass">
+                <h2>SIMULATION MODE</h2>
+                <div class="mode-toggle-container">
+                    <button id="btnSmartMode" class="mode-btn active">
+                        🧠 Smart (Density-Based)
+                    </button>
+                    <button id="btnTradMode" class="mode-btn">
+                        ⏱ Traditional (Fixed 90s)
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-card glass">
+                <h2>TRAFFIC DENSITY</h2>
+                <p class="card-desc">Controls vehicle spawn rate per approach.</p>
+
+                <div class="sliders-grid">
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="dir-label color-n">↓ North (Southbound)</span>
+                            <span class="slider-val" id="valN">80%</span>
+                        </div>
+                        <input type="range" id="sliderN" min="0" max="100" value="80" class="density-slider slider-n">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="dir-label color-e">← East (Westbound)</span>
+                            <span class="slider-val" id="valE">10%</span>
+                        </div>
+                        <input type="range" id="sliderE" min="0" max="100" value="10" class="density-slider slider-e">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="dir-label color-s">↑ South (Northbound)</span>
+                            <span class="slider-val" id="valS">40%</span>
+                        </div>
+                        <input type="range" id="sliderS" min="0" max="100" value="40" class="density-slider slider-s">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="dir-label color-w">→ West (Eastbound)</span>
+                            <span class="slider-val" id="valW">20%</span>
+                        </div>
+                        <input type="range" id="sliderW" min="0" max="100" value="20" class="density-slider slider-w">
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card glass">
+                <h2>EMERGENCY VEHICLE</h2>
+                <p class="card-desc">Instantly grants green to chosen approach.</p>
+                <div class="emergency-buttons-grid">
+                    <button class="emg-btn" id="btnEmgN"><span class="btn-shortcut">F1</span>North</button>
+                    <button class="emg-btn" id="btnEmgE"><span class="btn-shortcut">F2</span>East</button>
+                    <button class="emg-btn" id="btnEmgS"><span class="btn-shortcut">F3</span>South</button>
+                    <button class="emg-btn" id="btnEmgW"><span class="btn-shortcut">F4</span>West</button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ── Centre: Simulation Canvas ── -->
+        <section class="simulation-viewport">
+            <canvas id="simCanvas"></canvas>
+        </section>
+
+        <!-- ── Right: Analytics ── -->
+        <section class="analytics-panel">
+
+            <!-- Legend -->
+            <div class="panel-card glass">
+                <h2>LEGEND</h2>
+                <p class="card-desc" style="margin:0">
+                    <span style="color:#ff9f1c">R</span> = red-runner &nbsp;|&nbsp;
+                    <span style="color:#2ecc71">◄</span> = free left turn (LHT rule)
+                </p>
+            </div>
+
+            <div class="panel-card glass">
+                <h2>APPROACH METRICS</h2>
+                <div class="table-container">
+                    <table class="metrics-table">
+                        <thead>
+                            <tr>
+                                <th>Dir</th>
+                                <th>Queue</th>
+                                <th>Green Calc</th>
+                                <th>Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="rowN">
+                                <td class="color-n font-semibold">N</td>
+                                <td class="mono" id="queueN">—</td>
+                                <td class="mono small" id="calcGreenN">—</td>
+                                <td><span class="light-badge red" id="badgeN">RED</span></td>
+                            </tr>
+                            <tr id="rowE">
+                                <td class="color-e font-semibold">E</td>
+                                <td class="mono" id="queueE">—</td>
+                                <td class="mono small" id="calcGreenE">—</td>
+                                <td><span class="light-badge red" id="badgeE">RED</span></td>
+                            </tr>
+                            <tr id="rowS">
+                                <td class="color-s font-semibold">S</td>
+                                <td class="mono" id="queueS">—</td>
+                                <td class="mono small" id="calcGreenS">—</td>
+                                <td><span class="light-badge red" id="badgeS">RED</span></td>
+                            </tr>
+                            <tr id="rowW">
+                                <td class="color-w font-semibold">W</td>
+                                <td class="mono" id="queueW">—</td>
+                                <td class="mono small" id="calcGreenW">—</td>
+                                <td><span class="light-badge red" id="badgeW">RED</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel-card glass">
+                <h2>SYSTEM SPEC</h2>
+                <div class="spec-list">
+                    <div class="spec-item">
+                        <span class="spec-title">Smart Green Formula</span>
+                        <span class="spec-val font-mono">queue × 2 s  →  [20s, 90s]</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-title">Green Duration Range</span>
+                        <span class="spec-val font-mono">[20 s → 90 s]</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-title">Traditional Timer</span>
+                        <span class="spec-val">Fixed 90 s every phase</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-title">Emergency Override</span>
+                        <span class="spec-val">Current → Yellow 3s → Red, emergency direction → Green 20s</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-title">Indian LHT Rules</span>
+                        <span class="spec-val">Free left turns on red (◄) — bikes/autos/cars jump signals (R badge)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-title">Car-Following</span>
+                        <span class="spec-val">IDM-lite model, 8 px safe gap, hard stop-line clamp</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card glass log-card flex-fill">
+                <h2>SYSTEM LOG</h2>
+                <div class="logs-container" id="logsContainer"></div>
+            </div>
+
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>
+            <kbd>T</kbd> Toggle Mode &nbsp;|&nbsp;
+            <kbd>1</kbd><kbd>Q</kbd> N density &nbsp;
+            <kbd>2</kbd><kbd>W</kbd> E density &nbsp;
+            <kbd>3</kbd><kbd>E</kbd> S density &nbsp;
+            <kbd>4</kbd><kbd>R</kbd> W density &nbsp;|&nbsp;
+            <kbd>F1</kbd>–<kbd>F4</kbd> Emergency
+        </p>
+    </footer>
+
+</div>
+<script src="{{ url_for('static', filename='js/simulation.js') }}"></script>
+</body>
+</html>
